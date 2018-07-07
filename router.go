@@ -6,14 +6,15 @@
 package router
 
 import (
+	"fmt"
 	"log"
 	"net/url"
 	"regexp"
 	"strings"
 
 	"github.com/go-humble/detect"
-	"github.com/gopherjs/gopherjs/js"
-	"honnef.co/go/js/dom"
+	"github.com/gopherjs/gopherwasm/js"
+	dom "github.com/gowasm/go-js-dom"
 )
 
 var (
@@ -30,12 +31,13 @@ func init() {
 		// panic.
 		var ok bool
 		document, ok = dom.GetWindow().Document().(dom.HTMLDocument)
+		fmt.Println(document, ok)
 		if !ok {
 			panic("Could not convert document to dom.HTMLDocument")
 		}
-		browserSupportsPushState = (js.Global.Get("onpopstate") != js.Undefined) &&
-			(js.Global.Get("history") != js.Undefined) &&
-			(js.Global.Get("history").Get("pushState") != js.Undefined)
+		browserSupportsPushState = (js.Global().Get("onpopstate") != js.Undefined()) &&
+			(js.Global().Get("history") != js.Undefined()) &&
+			(js.Global().Get("history").Get("pushState") != js.Undefined())
 	}
 }
 
@@ -60,7 +62,7 @@ type Router struct {
 	Verbose bool
 	// listener is the js.Object representation of a listener callback.
 	// It is required in order to use the RemoveEventListener method
-	listener func(*js.Object)
+	listener func(js.Value)
 }
 
 // Context is used as an argument to Handlers
@@ -156,9 +158,9 @@ func (r *Router) Start() {
 // the router will not trigger any more router.Handler functions.
 func (r *Router) Stop() {
 	if browserSupportsPushState && !r.ForceHashURL {
-		js.Global.Set("onpopstate", nil)
+		js.Global().Set("onpopstate", nil)
 	} else {
-		js.Global.Set("onhashchange", nil)
+		js.Global().Set("onhashchange", nil)
 	}
 }
 
@@ -191,7 +193,7 @@ func (r *Router) CanNavigate(path string) bool {
 // It has the same effect as the user pressing the back button,
 // and is just a wrapper around history.back()
 func (r *Router) Back() {
-	js.Global.Get("history").Call("back")
+	js.Global().Get("history").Call("back")
 	if r.ShouldInterceptLinks {
 		r.InterceptLinks()
 	}
@@ -243,7 +245,7 @@ func (r *Router) interceptLink(event dom.Event) {
 	// Only intercept the click event if we have a route which matches
 	// Otherwise, just do the default.
 	if bestRoute, _, _ := r.findBestRoute(path); bestRoute != nil {
-		event.PreventDefault()
+		event.PreventDefault() // TODO - don't think this will work?
 		go r.Navigate(path)
 	}
 }
@@ -331,21 +333,38 @@ func removeEmptyStrings(strings []string) []string {
 	return result
 }
 
+/*
+   cb = js.NewCallback(func(args []js.Value) {
+                  move := js.Global.Get("document").Call("getElementById", "myText").Get("value").Int()
+                  fmt.Println(move)
+          })
+          js.Global.Get("document").Call("getElementById", "myText").Call("addEventListener", "input", cb)
+
+*/
 // watchHash listens to the onhashchange event and calls r.pathChanged when
 // it changes
 func (r *Router) watchHash() {
-	js.Global.Set("onhashchange", func() {
+	cb := js.NewCallback(func(args []js.Value) {
 		go func() {
 			path := getPathFromHash(getHash())
 			r.pathChanged(path, false)
 		}()
 	})
+	js.Global().Call("addEventListener", "onhashchange", cb)
+	/*
+		js.Global().Set("onhashchange", func() {
+			go func() {
+				path := getPathFromHash(getHash())
+				r.pathChanged(path, false)
+			}()
+		})
+	*/
 }
 
 // watchHistory listens to the onpopstate event and calls r.pathChanged when
 // it changes
 func (r *Router) watchHistory() {
-	js.Global.Set("onpopstate", func() {
+	cb := js.NewCallback(func(args []js.Value) {
 		go func() {
 			r.pathChanged(getPath(), false)
 			if r.ShouldInterceptLinks {
@@ -353,6 +372,17 @@ func (r *Router) watchHistory() {
 			}
 		}()
 	})
+	js.Global().Call("addEventListener", "onpopstate", cb)
+	/*
+		js.Global().Set("onpopstate", func() {
+			go func() {
+				r.pathChanged(getPath(), false)
+				if r.ShouldInterceptLinks {
+					r.InterceptLinks()
+				}
+			}()
+		})
+	*/
 }
 
 // getPathFromHash returns everything after the "#" character in hash.
@@ -362,20 +392,20 @@ func getPathFromHash(hash string) string {
 
 // getHash is an alias for js.Global.Get("location").Get("hash").String()
 func getHash() string {
-	return js.Global.Get("location").Get("hash").String()
+	return js.Global().Get("location").Get("hash").String()
 }
 
 // setHash is an alias for js.Global.Get("location").Set("hash", hash)
 func setHash(hash string) {
-	js.Global.Get("location").Set("hash", hash)
+	js.Global().Get("location").Set("hash", hash)
 }
 
 // getPath is an alias for js.Global.Get("location").Get("pathname").String()
 func getPath() string {
-	return js.Global.Get("location").Get("pathname").String()
+	return js.Global().Get("location").Get("pathname").String()
 }
 
 // pushState is an alias for js.Global.Get("history").Call("pushState", nil, "", path)
 func pushState(path string) {
-	js.Global.Get("history").Call("pushState", nil, "", path)
+	js.Global().Get("history").Call("pushState", nil, "", path)
 }

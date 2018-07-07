@@ -12,7 +12,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/go-humble/detect"
 	"github.com/gopherjs/gopherwasm/js"
 	dom "github.com/gowasm/go-js-dom"
 )
@@ -25,20 +24,18 @@ var (
 )
 
 func init() {
-	if detect.IsBrowser() {
-		// We only want to initialize certain things if we are running
-		// inside a browser. Otherwise, they will cause the program to
-		// panic.
-		var ok bool
-		document, ok = dom.GetWindow().Document().(dom.HTMLDocument)
-		fmt.Println(document, ok)
-		if !ok {
-			panic("Could not convert document to dom.HTMLDocument")
-		}
-		browserSupportsPushState = (js.Global().Get("onpopstate") != js.Undefined()) &&
-			(js.Global().Get("history") != js.Undefined()) &&
-			(js.Global().Get("history").Get("pushState") != js.Undefined())
+	// We only want to initialize certain things if we are running
+	// inside a browser. Otherwise, they will cause the program to
+	// panic.
+	var ok bool
+	document, ok = dom.GetWindow().Document().(dom.HTMLDocument)
+	if !ok {
+		panic("Could not convert document to dom.HTMLDocument")
 	}
+	browserSupportsPushState = (js.Global().Get("onpopstate") != js.Undefined()) &&
+		(js.Global().Get("history") != js.Undefined()) &&
+		(js.Global().Get("history").Get("pushState") != js.Undefined())
+	fmt.Println("Push State:", browserSupportsPushState)
 }
 
 // Router is responsible for handling routes. If history.pushState is

@@ -6,7 +6,6 @@
 package router
 
 import (
-	"fmt"
 	"log"
 	"net/url"
 	"regexp"
@@ -35,7 +34,6 @@ func init() {
 	browserSupportsPushState = (js.Global().Get("onpopstate") != js.Undefined()) &&
 		(js.Global().Get("history") != js.Undefined()) &&
 		(js.Global().Get("history").Get("pushState") != js.Undefined())
-	fmt.Println("Push State:", browserSupportsPushState)
 }
 
 // Router is responsible for handling routes. If history.pushState is
